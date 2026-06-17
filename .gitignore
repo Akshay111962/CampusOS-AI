@@ -1,0 +1,57 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Build outputs
+dist/
+dist-ssr/
+out/
+build/
+*.egg-info/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.development
+.env.test
+.env.production
+*.env
+
+# Local database data (PostgreSQL)
+pgdata/
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+pyenv/
+
+# Celery
+celerybeat-schedule
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+
+# IDE / Editor folders
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
