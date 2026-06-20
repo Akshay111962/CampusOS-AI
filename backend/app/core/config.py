@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     # Database and Cache config
     DATABASE_URL: str = "postgresql+asyncpg://postgres@localhost:5433/campusos"
     REDIS_URL: str = "redis://localhost:6379/0"
+    POSTGRES_POOL_SIZE: int = 5
+    POSTGRES_MAX_OVERFLOW: int = 10
     
     # JWT security config
     JWT_SECRET_KEY: str

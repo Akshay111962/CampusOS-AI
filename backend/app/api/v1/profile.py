@@ -49,7 +49,8 @@ def trigger_matching(email: str) -> None:
     if not celery_dispatched:
         try:
             # Check if we are running in an active event loop
-            asyncio.create_task(_run_matching_background(email))
+            loop = asyncio.get_running_loop()
+            loop.create_task(_run_matching_background(email))
             print(f"[Direct Matching] Dispatched task on running event loop for {email}.")
         except RuntimeError:
             # No running loop (e.g., in a background thread pool)
