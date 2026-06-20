@@ -32,8 +32,7 @@ export const Navbar: React.FC = () => {
     { label: 'Product', path: '/' },
     { label: 'Interactive Demo', path: '/demo' },
     { label: 'AI Assistant', path: '/assistant' },
-    { label: 'For Universities', path: '/universities' },
-    { label: 'Pricing', path: '/pricing' }
+    { label: 'For Universities', path: '/universities' }
   ];
 
   if (user && user.role === 'student') {

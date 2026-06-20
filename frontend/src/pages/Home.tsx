@@ -7,7 +7,7 @@ import FeaturesGrid from '../components/sections/FeaturesGrid';
 import InteractiveDemo from '../components/demo/InteractiveDemo';
 import Testimonials from '../components/sections/Testimonials';
 import AdminPitch from '../components/sections/AdminPitch';
-import PricingRoadmap from '../components/sections/PricingRoadmap';
+import Roadmap from '../components/sections/Roadmap';
 import { GradientButton } from '../components/ui/GradientButton';
 
 export const Home: React.FC = () => {
@@ -79,8 +79,8 @@ export const Home: React.FC = () => {
       {/* Admin / University Pitch Section */}
       <AdminPitch />
 
-      {/* Pricing and Roadmap Teaser */}
-      <PricingRoadmap />
+      {/* Product Roadmap Section */}
+      <Roadmap />
 
       {/* Final Call to Action Block */}
       <section className="py-24 relative overflow-hidden border-t border-white/5 bg-gradient-to-tr from-accent-indigo/10 to-accent-cyan/10 text-center">
@@ -103,9 +103,9 @@ export const Home: React.FC = () => {
               </GradientButton>
             </Link>
             
-            <a href="#pricing">
+            <a href="#roadmap">
               <GradientButton variant="secondary" className="py-3 px-8 text-sm">
-                View Pricing Tiers
+                Explore Product Roadmap
               </GradientButton>
             </a>
           </div>

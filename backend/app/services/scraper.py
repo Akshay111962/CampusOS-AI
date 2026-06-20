@@ -35,6 +35,18 @@ def clean_text(text: str) -> str:
         .replace("’", "'")
         .replace("“", '"')
         .replace("”", '"')
+        .replace("\u2018", "'")
+        .replace("\u2019", "'")
+        .replace("\u201c", '"')
+        .replace("\u201d", '"')
+        .replace("→", "->")
+        .replace("←", "<-")
+        .replace("•", "-")
+        .replace("…", "...")
+        .replace("×", "x")
+        .replace("©", "(c)")
+        .replace("®", "(R)")
+        .replace("™", "(TM)")
     )
     return text.encode("cp1252", errors="ignore").decode("cp1252")
 
@@ -88,18 +100,8 @@ async def run_scraper_pipeline(db: AsyncSession) -> int:
             for url in event_links:
                 raw_payload_clean = ""
                 try:
-                    # Check if this URL is already successfully scraped or duplicate in ingestion logs
-                    # to prevent redundant AI extraction calls
-                    dup_log_res = await db.execute(
-                        select(IngestionLog).where(
-                            IngestionLog.source == IngestionSource.SCRAPER,
-                            IngestionLog.raw_payload.like(f"%{url}%"),
-                            IngestionLog.status.in_([IngestionStatus.SUCCESS, IngestionStatus.DUPLICATE])
-                        )
-                    )
-                    if dup_log_res.scalars().first():
-                        print(f"Skipping already processed URL: {url}")
-                        continue
+                    # Always re-scrape and upsert — do not skip based on ingestion logs.
+                    # This ensures event data is refreshed every scrape cycle.
                         
                     print(f"Scraping event page: {url}")
                     event_res = await client.get(url)
@@ -158,26 +160,39 @@ async def run_scraper_pipeline(db: AsyncSession) -> int:
                         else event_data["registration_deadline"]
                     )
                     
-                    # 4. Check duplicate in events table (title + start_date)
+                    # 4. Upsert: find existing event by title; update if found, insert if not
                     cleaned_title = clean_text(event_data["title"])
                     event_dup_result = await db.execute(
-                        select(Event).where(
-                            Event.title == cleaned_title,
-                            Event.start_date == start_date_parsed
-                        )
+                        select(Event).where(Event.title == cleaned_title)
                     )
-                    if event_dup_result.scalar_one_or_none():
-                        print(f"Duplicate event found in events table: {cleaned_title}")
-                        dup_log = IngestionLog(
+                    existing_event = event_dup_result.scalar_one_or_none()
+
+                    if existing_event:
+                        # UPDATE existing event with fresh scraped data
+                        existing_event.description = clean_text(event_data["description"])
+                        existing_event.category = event_data["category"]
+                        existing_event.eligible_departments = clean_list(event_data["eligible_departments"])
+                        existing_event.eligible_years = event_data["eligible_years"]
+                        existing_event.start_date = start_date_parsed
+                        existing_event.registration_deadline = registration_deadline_parsed
+                        existing_event.registration_link = clean_text(event_data["registration_link"])
+                        existing_event.raw_source_text = raw_payload_clean
+                        existing_event.extraction_confidence = confidence
+                        db_event = existing_event
+                        print(f"Updated existing event: {cleaned_title}")
+
+                        # Log as duplicate (updated)
+                        ingest_log = IngestionLog(
                             source=IngestionSource.SCRAPER,
                             raw_payload=raw_payload_clean,
+                            extracted_event_id=db_event.id,
                             status=IngestionStatus.DUPLICATE
                         )
-                        db.add(dup_log)
+                        db.add(ingest_log)
                         await db.commit()
-                        continue
-                        
-                    # Create the Event
+                        continue  # Skip re-running matching for already-known events
+
+                    # INSERT new event
                     db_event = Event(
                         title=cleaned_title,
                         description=clean_text(event_data["description"]),
@@ -191,10 +206,10 @@ async def run_scraper_pipeline(db: AsyncSession) -> int:
                         raw_source_text=raw_payload_clean,
                         extraction_confidence=confidence
                     )
-                    
+
                     db.add(db_event)
                     await db.flush()  # Get db_event.id
-                    
+
                     # Create Ingestion Log
                     ingest_log = IngestionLog(
                         source=IngestionSource.SCRAPER,

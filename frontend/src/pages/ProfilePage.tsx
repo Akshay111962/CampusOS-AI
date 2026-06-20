@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Calendar, Plus, X, ArrowRight, CheckCircle, BrainCircuit } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { GraduationCap, Calendar, Plus, X, ArrowRight, CheckCircle, BrainCircuit, Loader2, Sparkles } from 'lucide-react';
 import { GradientButton } from '../components/ui/GradientButton';
 
 export const ProfilePage: React.FC = () => {
-  const { user, profile, updateProfile } = useAuth();
-  const navigate = useNavigate();
+  const { user, profile, updateProfile, recommendations, recommendationsLoading } = useAuth();
   
   const [department, setDepartment] = useState('Computer Science');
   const [year, setYear] = useState<number>(3);
@@ -20,6 +19,7 @@ export const ProfilePage: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [syncDone, setSyncDone] = useState(false); // true after polling completes
 
   // Initialize fields if profile already exists
   useEffect(() => {
@@ -33,6 +33,13 @@ export const ProfilePage: React.FC = () => {
       if (user.year) setYear(user.year);
     }
   }, [profile, user]);
+
+  // Watch recommendationsLoading: when it goes false after a save, mark sync done
+  useEffect(() => {
+    if (success && !recommendationsLoading) {
+      setSyncDone(true);
+    }
+  }, [recommendationsLoading, success]);
 
   const handleAddInterest = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -64,6 +71,7 @@ export const ProfilePage: React.FC = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setSyncDone(false);
     setSubmitting(true);
 
     // Safety net: Automatically add any typed text that wasn't submitted as a tag yet
@@ -97,14 +105,10 @@ export const ProfilePage: React.FC = () => {
 
     try {
       await updateProfile(finalInterests, finalSkills, department, year, careerGoals);
-      setSuccess('Profile updated successfully! Welcome to CampusOS AI.');
-      // Auto scroll to top
+      setSuccess('Profile saved! AI is now computing your personalized recommendations...');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      // Redirect to home dashboard
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
+      // After polling completes (tracked via recommendationsLoading going false), mark sync done
+      // We watch recommendationsLoading in a useEffect below
     } catch (err: any) {
       setError(err.message || 'Failed to update profile. Please try again.');
     } finally {
@@ -140,10 +144,58 @@ export const ProfilePage: React.FC = () => {
             {error}
           </div>
         )}
+
+        {/* AI Sync Status Card — shown while computing or after done */}
         {success && (
-          <div className="bg-accent-success/10 border border-accent-success/25 text-accent-success text-xs p-4 rounded-xl mb-6 leading-normal flex items-start gap-2.5 animate-slide-in">
-            <CheckCircle className="w-4.5 h-4.5 shrink-0 text-accent-success" />
-            <span>{success}</span>
+          <div className={`border rounded-2xl p-5 mb-6 transition-all duration-500 animate-slide-in ${
+            syncDone
+              ? 'bg-accent-success/10 border-accent-success/30'
+              : 'bg-accent-indigo/10 border-accent-indigo/25'
+          }`}>
+            {syncDone ? (
+              // ✅ Done state
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-accent-success/20 flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-accent-success" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-accent-success mb-1">
+                    ✅ Recommendations Ready!
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    AI found <span className="text-accent-cyan font-bold">{recommendations.length} personalized match{recommendations.length !== 1 ? 'es' : ''}</span> based on your profile.
+                  </p>
+                </div>
+                <Link to="/demo">
+                  <button className="mt-1 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-accent-indigo to-accent-cyan text-white font-semibold text-xs rounded-xl hover:opacity-90 transition-opacity cursor-pointer">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    View My Recommended Events
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </Link>
+              </div>
+            ) : (
+              // ⏳ Computing state
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-accent-indigo/20 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-accent-indigo animate-spin" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-text-primary mb-1">
+                    🤖 AI is computing your recommendations...
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    Matching your interests & skills against all DAU events. This takes a few seconds.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent-indigo animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent-indigo animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent-indigo animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="ml-1">Scanning events database</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -18,15 +18,15 @@ def test_heuristic_pre_filtering():
     
     # 1. Matches: CS student in Year 3
     student_ok = StudentProfile(interests=["AI", "IoT"])
-    assert heuristic_pre_filter(student_ok, "Computer Science", 3, event) is True
+    assert heuristic_pre_filter(student_ok, "Computer Science", 3, event) == (True, True)
     
-    # 2. Fails: CS student in Year 2
+    # 2. Fails: CS student in Year 2 (year is hard block)
     student_wrong_year = StudentProfile(interests=["AI"])
-    assert heuristic_pre_filter(student_wrong_year, "Computer Science", 2, event) is False
+    assert heuristic_pre_filter(student_wrong_year, "Computer Science", 2, event) == (False, True)
     
-    # 3. Fails: EE student in Year 3
+    # 3. Department mismatch: EE student in Year 3 (soft mismatch, passes filter but dept mismatch)
     student_wrong_dept = StudentProfile(interests=["IoT"])
-    assert heuristic_pre_filter(student_wrong_dept, "Electrical Engineering", 3, event) is False
+    assert heuristic_pre_filter(student_wrong_dept, "Electrical Engineering", 3, event) == (True, False)
 
 
 def test_heuristic_matching_scores():
@@ -44,7 +44,7 @@ def test_heuristic_matching_scores():
     )
     
     score, reason = get_heuristic_score(student, event_ml)
-    # Default is 0.5, plus 0.1 per matching keyword (machine learning, neural networks, python, pytorch)
+    # Default is 0.55 base, plus 0.1 per matching keyword (machine learning, neural networks, python, pytorch)
     assert score >= 0.8
     assert "pytorch" in reason.lower() or "machine learning" in reason.lower()
     
@@ -56,7 +56,7 @@ def test_heuristic_matching_scores():
         source=EventSource.MANUAL
     )
     score_art, _ = get_heuristic_score(student, event_art)
-    assert score_art == 0.3
+    assert score_art == 0.5
 
 
 def test_fallback_ai_extraction():

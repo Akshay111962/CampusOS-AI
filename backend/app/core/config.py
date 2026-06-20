@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     FERNET_KEY: str
     
     # Third-party API keys
-    ANTHROPIC_API_KEY: str
+    GEMINI_API_KEY: str = ""
     
     # Auth and Domain Restriction
     ALLOWED_EMAIL_DOMAIN: str = "@dau.ac.in"

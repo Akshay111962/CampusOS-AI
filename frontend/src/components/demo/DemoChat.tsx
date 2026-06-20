@@ -1,10 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { Send, User, Bot, HelpCircle, MapPin, Award } from 'lucide-react';
+import { Send, User, Bot, HelpCircle, MapPin, Award, BookOpen } from 'lucide-react';
 import { getBotResponse } from '../../data/mockData';
 import type { Opportunity } from '../../data/mockData';
 import { GradientButton } from '../ui/GradientButton';
 import { DeadlineBadge } from '../ui/DeadlineBadge';
+
+interface HistoryEntry {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 interface Message {
   id: string;
@@ -12,6 +17,7 @@ interface Message {
   text: string;
   timestamp: Date;
   matchedEvents?: Opportunity[];
+  sources?: string[];
 }
 
 export const DemoChat: React.FC = () => {
@@ -26,6 +32,8 @@ export const DemoChat: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [registeredIds, setRegisteredIds] = useState<string[]>([]);
+  // Conversation history for RAG multi-turn context (last 6 turns)
+  const conversationHistory = useRef<HistoryEntry[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const quickPrompts = [
@@ -54,24 +62,91 @@ export const DemoChat: React.FC = () => {
     setInputText('');
     setIsTyping(true);
 
-    // Simulate AI network thinking delay
-    setTimeout(() => {
-      const { responseText, matchedOpportunities } = getBotResponse(textToSend);
-      
+    // Add this user message to conversation history before the API call
+    conversationHistory.current = [
+      ...conversationHistory.current,
+      { role: 'user', content: textToSend }
+    ].slice(-6); // keep only last 6 turns
+
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    fetch('http://127.0.0.1:8000/api/v1/assistant/ask', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        question: textToSend,
+        history: conversationHistory.current.slice(0, -1) // all but the current turn
+      })
+    })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error('API request failed');
+      }
+      return res.json();
+    })
+    .then((data) => {
+      const botText: string = data.response;
+      const sources: string[] = data.sources || [];
+
+      // Append assistant reply to history
+      conversationHistory.current = [
+        ...conversationHistory.current,
+        { role: 'assistant', content: botText }
+      ].slice(-6);
+
       const botMessage: Message = {
         id: `msg-bot-${Date.now()}`,
         sender: 'bot',
-        text: responseText,
+        text: botText,
         timestamp: new Date(),
-        matchedEvents: matchedOpportunities
+        matchedEvents: data.matched_events || [],
+        sources
       };
-
       setMessages((prev) => [...prev, botMessage]);
       setIsTyping(false);
-    }, 750);
+    })
+    .catch((err) => {
+      console.error('Failed to get real AI response. Falling back to local simulation:', err);
+      // Fallback to local simulation if backend API is not available or errors out
+      setTimeout(() => {
+        const { responseText, matchedOpportunities } = getBotResponse(textToSend);
+
+        conversationHistory.current = [
+          ...conversationHistory.current,
+          { role: 'assistant', content: responseText }
+        ].slice(-6);
+
+        const botMessage: Message = {
+          id: `msg-bot-${Date.now()}`,
+          sender: 'bot',
+          text: responseText,
+          timestamp: new Date(),
+          matchedEvents: matchedOpportunities,
+          sources: []
+        };
+
+        setMessages((prev) => [...prev, botMessage]);
+        setIsTyping(false);
+      }, 750);
+    });
   };
 
   const handleRegister = (id: string) => {
+    const opp = messages.flatMap(m => m.matchedEvents || []).find(o => o.id === id);
+    const linkToOpen = (opp?.location && opp.location.startsWith('http'))
+      ? opp.location
+      : (opp?.link || null);
+
+    if (linkToOpen && linkToOpen.startsWith('http')) {
+      window.open(linkToOpen, '_blank', 'noopener,noreferrer');
+    }
+
     if (registeredIds.includes(id)) return;
     setRegisteredIds((prev) => [...prev, id]);
 
@@ -84,7 +159,7 @@ export const DemoChat: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[520px] bg-surface-glass/40 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-md">
+    <div className="flex flex-col h-[580px] bg-surface-glass/40 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-md">
       {/* Chat Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/5">
         <div className="flex items-center gap-2.5">
@@ -95,14 +170,14 @@ export const DemoChat: React.FC = () => {
             <h4 className="font-display font-semibold text-sm text-text-primary tracking-tight">Campus AI</h4>
             <span className="text-[10px] text-accent-success font-medium flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-accent-success animate-pulse" />
-              Online • AI Agent
+              Online • RAG-Powered Agent
             </span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2 text-[10px] text-text-secondary">
           <HelpCircle className="w-3.5 h-3.5" />
-          <span>Simulated Agent Model</span>
+          <span>DAU Knowledge Base</span>
         </div>
       </div>
 
@@ -141,14 +216,29 @@ export const DemoChat: React.FC = () => {
                   max-w-[85%]
                   whitespace-pre-line
                   border
-                  ${isUser 
-                    ? 'bg-gradient-to-r from-accent-indigo/15 to-accent-indigo/25 border-accent-indigo/30 text-text-primary rounded-tr-none' 
+                  ${isUser
+                    ? 'bg-gradient-to-r from-accent-indigo/15 to-accent-indigo/25 border-accent-indigo/30 text-text-primary rounded-tr-none'
                     : 'bg-white/5 border-white/5 text-text-primary rounded-tl-none'
                   }
                 `.trim()}
               >
                 {msg.text}
               </div>
+
+              {/* Source pills — shown below bot messages when RAG sources available */}
+              {!isUser && msg.sources && msg.sources.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5 max-w-[85%]">
+                  {msg.sources.map((src, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 text-[9px] text-accent-cyan/80 bg-accent-cyan/5 border border-accent-cyan/15 px-2 py-0.5 rounded-full"
+                    >
+                      <BookOpen className="w-2.5 h-2.5" />
+                      {src}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Render matched events inline if present */}
               {msg.matchedEvents && msg.matchedEvents.length > 0 && (
@@ -165,8 +255,8 @@ export const DemoChat: React.FC = () => {
                           border
                           transition-all
                           duration-300
-                          ${isRegistered 
-                            ? 'border-accent-success/40 bg-accent-success/5' 
+                          ${isRegistered
+                            ? 'border-accent-success/40 bg-accent-success/5'
                             : 'border-white/5 hover:border-accent-cyan/30'
                           }
                         `.trim()}
@@ -179,14 +269,24 @@ export const DemoChat: React.FC = () => {
                             {opp.matchScore}% Match
                           </span>
                         </div>
-                        <h5 className="font-semibold text-xs text-text-primary truncate mb-1">
+                        <h5
+                          onClick={() => {
+                            const linkToOpen = opp.link || (opp.location && opp.location.startsWith('http') ? opp.location : null);
+                            if (linkToOpen) {
+                              window.open(linkToOpen, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                          className={`font-semibold text-xs text-text-primary truncate mb-1 ${
+                            (opp.link || (opp.location && opp.location.startsWith('http'))) ? 'cursor-pointer hover:text-accent-cyan transition-colors' : ''
+                          }`}
+                        >
                           {opp.title}
                         </h5>
                         <div className="flex items-center gap-1 text-[9px] text-text-secondary mb-2 truncate">
                           <MapPin className="w-3 h-3" />
                           <span>{opp.location}</span>
                         </div>
-                        
+
                         {/* reasoning mini pill */}
                         <div className="bg-white/5 rounded p-1.5 text-[9px] text-text-secondary mb-2 flex items-start gap-1 border border-white/5">
                           <Award className="w-3 h-3 text-accent-indigo flex-shrink-0 mt-0.5" />
@@ -205,14 +305,14 @@ export const DemoChat: React.FC = () => {
                               rounded
                               transition-colors
                               cursor-pointer
-                              ${isRegistered 
-                                ? 'bg-accent-success/15 border border-accent-success/20 text-accent-success disabled' 
+                              ${isRegistered
+                                ? 'bg-accent-success/15 border border-accent-success/20 text-accent-success disabled'
                                 : 'bg-accent-indigo/20 border border-accent-indigo/45 text-text-primary hover:bg-accent-indigo/40'
                               }
                             `.trim()}
                             disabled={isRegistered}
                           >
-                            {isRegistered ? 'RSVP\'d ✓' : 'RSVP'}
+                            {isRegistered ? "RSVP'd ✓" : 'RSVP'}
                           </button>
                         </div>
                       </div>
@@ -269,7 +369,7 @@ export const DemoChat: React.FC = () => {
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder="Ask Campus AI (e.g. 'Are there any hackathons this week?')..."
+          placeholder="Ask Campus AI (e.g. 'Tell me about SBG' or 'What are the B.Tech programs?')..."
           className="flex-1 text-xs bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-text-primary placeholder:text-text-secondary/70 focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan outline-none transition-all"
         />
         <GradientButton

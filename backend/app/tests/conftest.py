@@ -20,11 +20,11 @@ async def dummy_lifespan(app):
 app.router.lifespan_context = dummy_lifespan
 
 # Database URL for testing
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres@localhost:5433/campusos_test"
+TEST_DATABASE_URL = "postgresql+asyncpg://postgres:akshay11@localhost:5432/campusos_test"
 
 # Ensure test database exists synchronously
 def setup_test_db():
-    conn = psycopg2.connect(host="localhost", port=5433, user="postgres")
+    conn = psycopg2.connect(host="localhost", port=5432, user="postgres", password="akshay11")
     conn.autocommit = True
     cursor = conn.cursor()
     cursor.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = 'campusos_test'")
@@ -47,7 +47,7 @@ TestSessionLocal = async_sessionmaker(
 @pytest.fixture(scope="session", autouse=True)
 def initialize_db():
     # Build tables once per session synchronously
-    sync_url = "postgresql://postgres@localhost:5433/campusos_test"
+    sync_url = "postgresql://postgres:akshay11@localhost:5432/campusos_test"
     sync_engine = create_engine(sync_url)
     Base.metadata.drop_all(sync_engine)
     Base.metadata.create_all(sync_engine)

@@ -7,6 +7,7 @@ interface AuthContextType {
   user: any | null;
   profile: any | null;
   recommendations: any[];
+  recommendationsLoading: boolean;
   loading: boolean;
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
@@ -27,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
 
@@ -220,7 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     const updatedProfile = await res.json();
     setProfile(updatedProfile);
-    
+
     // Sync the local user state department/year
     if (user) {
       setUser({
@@ -229,6 +231,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         year: updatedProfile.year
       });
     }
+
+    // Show loading state — background matching is now running on the server
+    setRecommendationsLoading(true);
+
+    // Immediate fetch (may return 0 matches — matching is still running)
+    await fetchData();
+
+    // Poll up to 5 more times with increasing backoff to catch background worker completion
+    (async () => {
+      const delays = [1000, 1500, 2000, 3000, 4000];
+      for (const delay of delays) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        await fetchData();
+      }
+      // Always clear loading after all polls complete
+      setRecommendationsLoading(false);
+    })();
   };
 
   return (
@@ -238,6 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         profile,
         recommendations,
+        recommendationsLoading,
         loading,
         authModalOpen,
         setAuthModalOpen,

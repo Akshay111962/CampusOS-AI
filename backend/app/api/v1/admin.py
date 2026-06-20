@@ -5,9 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.db.models.models import User, Event, IngestionLog, IngestionStatus, EventSource
+from app.db.models.models import User, Event, StudentProfile, IngestionLog, IngestionStatus, EventSource, EventMatch, MatchStatus
 from app.schemas.schemas import EventCreate, EventResponse, IngestionLogResponse
-from app.api.v1.auth import get_current_admin
+from app.api.v1.auth import get_current_admin, get_current_user
+from app.api.v1.profile import trigger_matching
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -48,10 +49,80 @@ async def create_manual_event(
     await db.commit()
     await db.refresh(db_event)
     
-    # Audit log (Simple print as specified in Security Requirements)
+    # Audit log
     print(f"AUDIT LOG: Admin User {admin_user.email} created manual event ID {db_event.id}")
-    
+
+    # Trigger AI matching for ALL existing students against this new event
+    students_res = await db.execute(select(StudentProfile))
+    students = students_res.scalars().all()
+    matched_count = 0
+    for student in students:
+        user_res = await db.execute(select(User).where(User.id == student.user_id))
+        student_user = user_res.scalar_one_or_none()
+        if not student_user:
+            continue
+        from app.services.ai_matching import compute_relevance_match
+        score, reason = await compute_relevance_match(
+            student, student_user.department, student_user.year, db_event
+        )
+        if score >= 0.5:
+            # Check no duplicate match already exists
+            dup = await db.execute(
+                select(EventMatch).where(
+                    EventMatch.event_id == db_event.id,
+                    EventMatch.student_id == student.id
+                )
+            )
+            if not dup.scalar_one_or_none():
+                match = EventMatch(
+                    event_id=db_event.id,
+                    student_id=student.id,
+                    relevance_score=score,
+                    reason=reason,
+                    status=MatchStatus.RECOMMENDED
+                )
+                db.add(match)
+                matched_count += 1
+
+    await db.commit()
+    print(f"[Admin Event] Matched new event '{db_event.title}' to {matched_count} student(s).")
+
     return db_event
+
+
+# Manually trigger full re-matching for all students (Admin only)
+@router.post("/run-matching", status_code=status.HTTP_200_OK)
+async def run_full_matching(
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(get_current_admin)
+) -> Any:
+    """
+    Forces a full recalculation of event_matches for every student in the system.
+    Useful after first boot, bulk event import, or seeding new data.
+    Each student's existing non-registered matches are cleared and recalculated.
+    """
+    # Fetch all students with their user emails
+    students_res = await db.execute(select(StudentProfile))
+    students = students_res.scalars().all()
+
+    if not students:
+        return {"message": "No student profiles found.", "students_processed": 0}
+
+    dispatched = []
+    for student in students:
+        user_res = await db.execute(select(User).where(User.id == student.user_id))
+        user = user_res.scalar_one_or_none()
+        if not user:
+            continue
+        trigger_matching(user.email)
+        dispatched.append(user.email)
+
+    print(f"AUDIT LOG: Admin {admin_user.email} triggered full re-matching for {len(dispatched)} student(s).")
+    return {
+        "message": f"Matching triggered for {len(dispatched)} student(s). Results will be persisted to event_matches.",
+        "students_processed": len(dispatched),
+        "emails": dispatched
+    }
 
 
 # Review AI extraction ingestion logs (Admin / Organizer)

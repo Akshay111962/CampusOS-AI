@@ -10,6 +10,7 @@ export interface Opportunity {
   location: string;
   description: string;
   tags: string[];
+  link?: string;
 }
 
 export const mockOpportunities: Opportunity[] = [
@@ -24,7 +25,8 @@ export const mockOpportunities: Opportunity[] = [
     dateString: 'June 15, 2026',
     location: 'Engineering Block A, Aud-2',
     description: 'A 24-hour sprint to build AI-powered solutions. Mentorship from industry specialists and $5,000 in prizes.',
-    tags: ['AI/ML', 'React', 'Hackathon', 'Prizes']
+    tags: ['AI/ML', 'React', 'Hackathon', 'Prizes'],
+    link: 'https://devfest.google/'
   },
   {
     id: 'opp-2',
@@ -37,7 +39,8 @@ export const mockOpportunities: Opportunity[] = [
     dateString: 'June 16, 2026',
     location: 'Design Studio B, Room 102',
     description: 'Learn modern auto-layout, component states, and design system creation in Figma from a senior designer at Notion.',
-    tags: ['UI/UX', 'Figma', 'Workshop', 'Portfolio']
+    tags: ['UI/UX', 'Figma', 'Workshop', 'Portfolio'],
+    link: 'https://figma.com/'
   },
   {
     id: 'opp-3',
@@ -50,7 +53,8 @@ export const mockOpportunities: Opportunity[] = [
     dateString: 'June 17, 2026',
     location: 'AI Research Lab (Building C)',
     description: 'Work alongside Dr. Elena Rostova on training lightweight transformers for resource-constrained edge systems.',
-    tags: ['Research', 'NLP', 'PyTorch', 'Stipend']
+    tags: ['Research', 'NLP', 'PyTorch', 'Stipend'],
+    link: 'https://arxiv.org/'
   },
   {
     id: 'opp-4',
@@ -63,7 +67,8 @@ export const mockOpportunities: Opportunity[] = [
     dateString: 'June 20, 2026',
     location: 'Remote',
     description: 'Join the product team to polish user interactions, build high-performance dashboard interfaces, and squash bugs.',
-    tags: ['Internship', 'TypeScript', 'Tailwind', 'Remote']
+    tags: ['Internship', 'TypeScript', 'Tailwind', 'Remote'],
+    link: 'https://linear.app/careers'
   },
   {
     id: 'opp-5',
@@ -76,7 +81,8 @@ export const mockOpportunities: Opportunity[] = [
     dateString: 'June 21, 2026',
     location: 'Main Auditorium',
     description: 'A fireside chat with an OpenAI Staff Engineer discussing the future of agentic workflows and API developer practices.',
-    tags: ['Speaker', 'AI Agents', 'Networking']
+    tags: ['Speaker', 'AI Agents', 'Networking'],
+    link: 'https://openai.com/'
   },
   {
     id: 'opp-6',
@@ -89,7 +95,8 @@ export const mockOpportunities: Opportunity[] = [
     dateString: 'June 28, 2026',
     location: 'Hybrid / Mumbai Office',
     description: '8-week intensive training program on product lifecycle management, user interviews, metrics definition, and PRD writing.',
-    tags: ['Product Management', 'Internship', 'Mentorship']
+    tags: ['Product Management', 'Internship', 'Mentorship'],
+    link: 'https://productschool.com/'
   }
 ];
 
@@ -134,56 +141,6 @@ export const mockStats = [
   { value: '3x', label: 'Increase in Registrations' },
   { value: '92%', label: 'Students Discovered New Opportunities' },
   { value: '12+', label: 'Active Clubs & Societies' }
-];
-
-export const mockPricing = [
-  {
-    name: 'Free',
-    target: 'Students',
-    price: '$0',
-    frequency: 'forever',
-    features: [
-      'Personalized Opportunity Feed',
-      'Basic AI Match Score (up to 5/day)',
-      'In-app & Email notifications',
-      'Campus AI Chat Assistant (100 msgs/mo)',
-      'Community event board access'
-    ],
-    cta: 'Get Started Free',
-    popular: false
-  },
-  {
-    name: 'Campus',
-    target: 'Per University / Club Org',
-    price: '$149',
-    frequency: 'month / billed annually',
-    features: [
-      'Unlimited student matching models',
-      'SMS & WhatsApp instant alerts',
-      'Organizer Analytics Dashboard',
-      'Turnout prediction engine',
-      'Direct event targeting & push notifies',
-      'Priority university support'
-    ],
-    cta: 'Upgrade Your Campus',
-    popular: true
-  },
-  {
-    name: 'Enterprise',
-    target: 'Multi-campus Systems',
-    price: 'Custom',
-    frequency: 'tailored pricing',
-    features: [
-      'Cross-campus opportunity federation',
-      'Custom API & Student SIS integration',
-      'Dedicated Customer Success Manager',
-      'Predictive enrollment & engagement reports',
-      'SLA guarantees & custom branding',
-      'Custom AI Agent training models'
-    ],
-    cta: 'Contact Partnering',
-    popular: false
-  }
 ];
 
 export const mockRoadmap = [

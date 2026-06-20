@@ -5,6 +5,7 @@ import { mockOpportunities } from '../../data/mockData';
 import { DeadlineBadge } from '../ui/DeadlineBadge';
 import { GradientButton } from '../ui/GradientButton';
 import { useAuth } from '../../context/AuthContext';
+import { calculateScoreAndReason } from './DemoDashboard';
 
 const mapLiveRecToOpp = (match: any): any => {
   const event = match.event;
@@ -50,11 +51,44 @@ export const DemoDeadlines: React.FC = () => {
   const [rsvpLoading, setRsvpLoading] = useState<string | null>(null);
 
   const isLive = !!(user && liveRecs && liveRecs.length > 0);
+
+  const activeProfile = (() => {
+    const saved = localStorage.getItem('campusos_demo_profile');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      department: 'Computer Science',
+      year: 3,
+      skills: ['React', 'Python', 'Figma'],
+      interests: ['Machine Learning', 'UI/UX', 'Web Development'],
+      clubs: ['Google Developer Group (DAU Chapter)'],
+      rsvps: ['AI Speaker Series', 'Web3 Cohort']
+    };
+  })();
+
   const displayEvents = isLive 
     ? liveRecs.map(mapLiveRecToOpp).sort((a: any, b: any) => a.deadlineHours - b.deadlineHours)
-    : [...mockOpportunities].sort((a, b) => a.deadlineHours - b.deadlineHours);
+    : mockOpportunities.map(opp => {
+        const { score } = calculateScoreAndReason(opp, activeProfile);
+        return {
+          ...opp,
+          matchScore: score
+        };
+      }).sort((a, b) => a.deadlineHours - b.deadlineHours);
 
   const handleRegister = async (oppId: string) => {
+    const currentEvent = displayEvents.find((e: any) => e.id === oppId);
+    const linkToOpen = (currentEvent?.location && currentEvent.location.startsWith('http'))
+      ? currentEvent.location
+      : (currentEvent?.link || null);
+
+    if (linkToOpen && linkToOpen.startsWith('http')) {
+      window.open(linkToOpen, '_blank', 'noopener,noreferrer');
+    }
+
     if (isLive) {
       try {
         setRsvpLoading(oppId);
@@ -158,7 +192,17 @@ export const DemoDeadlines: React.FC = () => {
                     </div>
                   </div>
 
-                  <h5 className="font-display font-semibold text-sm text-text-primary mb-1">
+                  <h5
+                    onClick={() => {
+                      const linkToOpen = event.link || (event.location && event.location.startsWith('http') ? event.location : null);
+                      if (linkToOpen) {
+                        window.open(linkToOpen, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    className={`font-display font-semibold text-sm text-text-primary mb-1 ${
+                      (event.link || (event.location && event.location.startsWith('http'))) ? 'cursor-pointer hover:text-accent-cyan transition-colors' : ''
+                    }`}
+                  >
                     {event.title}
                   </h5>
                   

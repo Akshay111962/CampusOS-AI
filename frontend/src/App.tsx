@@ -6,7 +6,6 @@ import Home from './pages/Home';
 import DemoPage from './pages/DemoPage';
 import AssistantPage from './pages/AssistantPage';
 import UniversitiesPage from './pages/UniversitiesPage';
-import PricingPage from './pages/PricingPage';
 import ProfilePage from './pages/ProfilePage';
 import { useAuth } from './context/AuthContext';
 import { AuthGate } from './components/ui/AuthGate';
@@ -37,7 +36,6 @@ export const App: React.FC = () => {
     return <AuthGate />;
   }
 
-  const isProfileEmpty = user.role === 'student' && (!profile || (profile.interests.length === 0 || profile.skills.length === 0));
 
   return (
     <Router>
@@ -49,23 +47,13 @@ export const App: React.FC = () => {
         {/* Page Content Container */}
         <main className="flex-grow w-full relative">
           <Routes>
-            {isProfileEmpty ? (
-              <>
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="*" element={<Navigate to="/profile" replace />} />
-              </>
-            ) : (
-              <>
-                <Route path="/" element={<Home />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/demo" element={<DemoPage />} />
-                <Route path="/assistant" element={<AssistantPage />} />
-                <Route path="/universities" element={<UniversitiesPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                {/* Fallback redirect to Home */}
-                <Route path="*" element={<Home />} />
-              </>
-            )}
+            <Route path="/" element={<Home />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/demo" element={<DemoPage />} />
+            <Route path="/assistant" element={<AssistantPage />} />
+            <Route path="/universities" element={<UniversitiesPage />} />
+            {/* Fallback redirect to Home */}
+            <Route path="*" element={<Home />} />
           </Routes>
         </main>
 

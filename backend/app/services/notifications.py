@@ -3,7 +3,8 @@ from email.mime.text import MIMEText
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from anthropic import AsyncAnthropic
+from google import genai
+from google.genai import types
 
 from app.core.config import settings
 from app.db.models.models import (
@@ -101,27 +102,24 @@ async def run_notification_dispatch(db: AsyncSession, relevance_threshold: float
 
 
 async def generate_personalized_copy(student: StudentProfile, event: Event, match_reason: str) -> str:
-    """Uses Claude API (or heuristic fallback) to create notification copy."""
-    if not settings.ANTHROPIC_API_KEY or settings.ANTHROPIC_API_KEY.startswith("your_"):
+    """Uses Gemini API (or heuristic fallback) to create notification copy."""
+    if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.startswith("your_"):
         return f"Hey! Based on your interest in {', '.join((student.interests or [])[:2])}, the event '{event.title}' is a great match. Don't miss it!"
         
     try:
-        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        response = await client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=256,
-            system=NOTIFICATION_GENERATION_PROMPT,
-            messages=[
-                {
-                    "role": "user", 
-                    "content": f"Student Interests: {student.interests}\nEvent Title: {event.title}\nMatch Reason: {match_reason}"
-                }
-            ],
-            temperature=0.7
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=f"Student Interests: {student.interests}\nEvent Title: {event.title}\nMatch Reason: {match_reason}",
+            config=types.GenerateContentConfig(
+                system_instruction=NOTIFICATION_GENERATION_PROMPT,
+                temperature=0.7,
+                max_output_tokens=256,
+            )
         )
-        return response.content[0].text.strip()
+        return response.text.strip()
     except Exception as e:
-        print(f"Claude alert generation failed: {e}. Using fallback alert text.")
+        print(f"Gemini alert generation failed: {e}. Using fallback alert text.")
         return f"Hi there! The upcoming '{event.title}' matches your profile: {match_reason}. Registration closes soon, make sure to sign up!"
 
 

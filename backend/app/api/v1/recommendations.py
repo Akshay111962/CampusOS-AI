@@ -1,10 +1,11 @@
+from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.db.models.models import User, StudentProfile, EventMatch, MatchStatus
+from app.db.models.models import User, StudentProfile, EventMatch, MatchStatus, Event
 from app.schemas.schemas import MatchResponse, FeedbackCreate
 from app.api.v1.auth import get_current_user
 
@@ -28,11 +29,14 @@ async def get_recommendations(
         )
         
     # 2. Query matches with status recommended/notified/clicked (exclude dismissed/registered)
+    # and filter for only upcoming events (start_date >= datetime.now())
     matches_result = await db.execute(
         select(EventMatch)
+        .join(Event, EventMatch.event_id == Event.id)
         .where(
             EventMatch.student_id == profile.id,
-            EventMatch.status.in_([MatchStatus.RECOMMENDED, MatchStatus.NOTIFIED, MatchStatus.CLICKED])
+            EventMatch.status.in_([MatchStatus.RECOMMENDED, MatchStatus.NOTIFIED, MatchStatus.CLICKED]),
+            Event.start_date >= datetime.now()
         )
         .order_by(EventMatch.relevance_score.desc())
     )

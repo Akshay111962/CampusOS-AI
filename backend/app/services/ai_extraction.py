@@ -1,7 +1,8 @@
 import json
 from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple
-from anthropic import AsyncAnthropic
+from google import genai
+from google.genai import types
 
 from app.core.config import settings
 from app.db.models.models import EventCategory
@@ -33,36 +34,46 @@ async def extract_event_from_text(raw_text: str) -> Tuple[Dict[str, Any], float]
     Sends raw text to Claude API and extracts structured event dictionary.
     Returns: (event_dict, confidence_score)
     """
-    if not settings.ANTHROPIC_API_KEY or settings.ANTHROPIC_API_KEY.startswith("your_"):
-        print("WARNING: Anthropic API Key not set. Using fallback heuristic extraction.")
+    if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.startswith("your_"):
+        print("WARNING: Gemini API Key not set. Using fallback heuristic extraction.")
         return get_fallback_extraction(raw_text), 0.5
-        
+
     try:
-        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        response = await client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=2048,
-            system=EXTRACTION_SYSTEM_PROMPT,
-            messages=[
-                {"role": "user", "content": f"Extract details from this raw announcement text:\n\n{raw_text}"}
-            ],
-            temperature=0.0
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=f"Extract details from this raw announcement text:\n\n{raw_text}",
+            config=types.GenerateContentConfig(
+                system_instruction=EXTRACTION_SYSTEM_PROMPT,
+                temperature=0.0,
+                max_output_tokens=2048,
+                response_mime_type="application/json"
+            )
         )
-        
-        # Clean response content
-        content = response.content[0].text.strip()
-        # Strip markdown code blocks if Claude mistakenly generated them
+
+        content = response.text.strip()
         if content.startswith("```"):
             lines = content.splitlines()
-            if lines[0].startswith("```"):
-                content = "\n".join(lines[1:-1])
-                
+            content = "\n".join(lines[1:-1])
+
         event_data = json.loads(content)
         return event_data, 0.95
-        
+
     except Exception as e:
-        print(f"Claude API Ingestion Extraction failed: {e}. Using fallback.")
+        print(f"Gemini API Ingestion Extraction failed: {e}. Using fallback.")
         return get_fallback_extraction(raw_text), 0.3
+
+
+_MONTH_MAP = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12
+}
+
+def _parse_named_month(month_str: str, year_str: str, day_str: str) -> str:
+    """Convert month name + year + day into an ISO date string."""
+    month = _MONTH_MAP.get(month_str.lower(), 1)
+    return f"{int(year_str)}-{month:02d}-{int(day_str):02d}"
 
 
 def get_fallback_extraction(raw_text: str) -> Dict[str, Any]:
@@ -82,9 +93,51 @@ def get_fallback_extraction(raw_text: str) -> Dict[str, Any]:
     elif "internship" in text_lower or "cohort" in text_lower:
         category = "summer_school"
 
-    # 2. Heuristic dates
-    start_date = datetime.now() + timedelta(days=7)
-    deadline = datetime.now() + timedelta(days=5)
+    # 2. Parse real dates from text using regex
+    import re as _re
+
+    start_date = None
+    deadline = None
+
+    # Match patterns: "09/06/2026", "09-06-2026", "June 9, 2026", "9 June 2026", "2026-06-09"
+    date_patterns = [
+        # DD/MM/YYYY or DD-MM-YYYY
+        (_re.compile(r'\b(\d{1,2})[/\-](\d{1,2})[/\-](20\d{2})\b'), lambda m: f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"),
+        # YYYY-MM-DD
+        (_re.compile(r'\b(20\d{2})[/\-](\d{1,2})[/\-](\d{1,2})\b'), lambda m: f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"),
+        # Month DD, YYYY  or  DD Month YYYY
+        (_re.compile(
+            r'\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December),?\s+(20\d{2})\b',
+            _re.IGNORECASE
+        ), lambda m: _parse_named_month(m.group(2), m.group(3), m.group(1))),
+        (_re.compile(
+            r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b',
+            _re.IGNORECASE
+        ), lambda m: _parse_named_month(m.group(1), m.group(3), m.group(2))),
+    ]
+
+    found_dates = []
+    for pattern, formatter in date_patterns:
+        for match in pattern.finditer(raw_text):
+            try:
+                date_str = formatter(match)
+                dt = datetime.fromisoformat(date_str)
+                found_dates.append(dt)
+            except Exception:
+                pass
+
+    found_dates = sorted(set(found_dates))
+
+    if found_dates:
+        start_date = found_dates[0].replace(hour=9, minute=0, second=0)
+        # Registration deadline = day before start (or same day if only one date)
+        deadline = (found_dates[0] - timedelta(days=2)).replace(hour=23, minute=59, second=59)
+        if deadline < datetime.now():
+            deadline = start_date - timedelta(days=1)
+    else:
+        # Last resort fallback
+        start_date = datetime.now() + timedelta(days=7)
+        deadline = datetime.now() + timedelta(days=5)
 
     # 3. Clean Title, Description, and Link extraction
     title = "Scraped Opportunity Announcement"

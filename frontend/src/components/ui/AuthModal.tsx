@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { X, Mail, Lock, Shield, GraduationCap, Calendar, CheckCircle } from 'lucide-react';
+import { X, Mail, Lock, GraduationCap, Calendar, CheckCircle } from 'lucide-react';
 import { GradientButton } from './GradientButton';
 
 interface AuthModalProps {

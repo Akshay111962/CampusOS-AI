@@ -169,3 +169,16 @@ class GmailToken(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     
     user: Mapped["User"] = relationship("User", back_populates="gmail_token")
+
+
+class Club(Base):
+    __tablename__ = "clubs"
+    
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    how_to_join: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    contact_info: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+

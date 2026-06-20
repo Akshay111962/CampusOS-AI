@@ -45,14 +45,14 @@ The platform is designed around a modern, scalable architecture splitting concer
 ### Frontend Progress
 *   **React + TypeScript + Vite Setup**: Build-system and linter configurations ready.
 *   **Landing Page UI**: Beautiful layout showcasing:
-    *   *Hero, Features, How It Works, Testimonials, Pricing, Admin Pitch*
+    *   *Hero, Features, How It Works, Testimonials, Product Roadmap, Admin Pitch*
 *   **Interactive Demo Dashboard**: High-fidelity dashboard mock-up with recommendation cards.
 *   **AI Assistant Chat Page**: Dynamic interface to converse with the campus opportunity assistant.
 *   **State Management & Auth**: Fully integrated `AuthContext` connected to backend auth endpoints.
 *   **AuthModal**: Clean modal flow supporting both registration and login.
 *   **Design System & Components**: Reusable, customizable UI components including:
     *   `GlassCard`, `GradientButton`, `DeadlineBadge`
-*   **Routing Layout**: Integrated React Router with endpoints for `Home`, `Demo`, `Assistant`, `Universities`, and `Pricing` pages.
+*   **Routing Layout**: Integrated React Router with endpoints for `Home`, `Demo`, `Assistant`, and `Universities` pages.
 
 ---
 
