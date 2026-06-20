@@ -2,6 +2,12 @@
 
 CampusOS AI is an AI-powered campus opportunity discovery platform designed specifically for DAU students. It automatically ingests, structures, matches, and delivers personalized opportunities directly to students, ensuring they never miss valuable workshops, hackathons, lectures, or competitions.
 
+## Live Deployments
+
+* **Frontend**: [https://campusosai.vercel.app/](https://campusosai.vercel.app/)
+* **Backend (API)**: [https://campusos-ai-production.up.railway.app/](https://campusos-ai-production.up.railway.app/)
+* **API Documentation**: [https://campusos-ai-production.up.railway.app/docs](https://campusos-ai-production.up.railway.app/docs)
+
 ---
 
 ## Problem Statement
