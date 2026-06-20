@@ -194,7 +194,7 @@ export const DemoDashboard: React.FC<DemoDashboardProps> = () => {
       if (!token) return;
       try {
         setEventsLoading(true);
-        const res = await fetch(`http://127.0.0.1:8000/api/v1/events?upcoming_only=true&limit=100`, {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'}/events?upcoming_only=true&limit=100`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

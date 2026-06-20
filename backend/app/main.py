@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func
 
-from app.core.config import settings
+from app.core.config import settings, get_cors_origins
 from app.db.session import engine, SessionLocal
 from app.db.base import Base
 from app.db.models.models import User, StudentProfile, Event, UserRole, EventCategory, EventSource
@@ -158,10 +158,10 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS Middleware (configured for React dev server)
+# CORS Middleware (configured via ALLOWED_ORIGINS env var)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify frontend URL
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

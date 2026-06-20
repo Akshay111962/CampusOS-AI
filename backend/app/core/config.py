@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # Auth and Domain Restriction
     ALLOWED_EMAIL_DOMAIN: str = "@dau.ac.in"
     
+    # CORS allowed origins — set to your Vercel URL in production
+    # e.g. ALLOWED_ORIGINS=https://campusos.vercel.app
+    ALLOWED_ORIGINS: str = "*"
+    
     # Notification & OTP SMTP Configuration
     SMTP_HOST: str = "localhost"
     SMTP_PORT: int = 1025
@@ -45,19 +49,13 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-import subprocess
-def get_wsl_ip() -> str:
-    try:
-        out = subprocess.check_output(["wsl", "hostname", "-I"], timeout=2)
-        ips = out.decode().strip().split()
-        if ips:
-            return ips[0]
-    except Exception:
-        pass
-    return "127.0.0.1"
-
-# Dynamically resolve WSL IP for Redis
-if "localhost" in settings.REDIS_URL or "127.0.0.1" in settings.REDIS_URL:
-    wsl_ip = get_wsl_ip()
-    settings.REDIS_URL = settings.REDIS_URL.replace("localhost", wsl_ip).replace("127.0.0.1", wsl_ip)
-
+def get_cors_origins() -> List[str]:
+    """
+    Parse ALLOWED_ORIGINS env var into a list.
+    Supports '*' (wildcard) or comma-separated URLs.
+    e.g. "https://campusos.vercel.app,https://www.campusos.vercel.app"
+    """
+    raw = settings.ALLOWED_ORIGINS.strip()
+    if raw == "*":
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
