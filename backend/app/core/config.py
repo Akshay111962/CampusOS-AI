@@ -1,6 +1,7 @@
 import os
 from typing import Optional, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "CampusOS AI Backend"
@@ -42,6 +43,17 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_PHONE_NUMBER: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_database_url(self) -> "Settings":
+        url = self.DATABASE_URL
+        # In production (Railway), the URL starts with postgresql:// or postgres://
+        # We must rewrite it to postgresql+asyncpg:// for asyncpg connection
+        if url.startswith("postgresql://"):
+            self.DATABASE_URL = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgres://"):
+            self.DATABASE_URL = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        return self
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"),
